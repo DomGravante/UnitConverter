@@ -1,0 +1,118 @@
+# Builds x64 and ARM64 EXE installers via Inno Setup and publishes a GitHub Release.
+# Trigger manually from Actions → "Run workflow", or push a tag matching the pattern.
+#
+# TODO before first run:
+#   1. Update GITHUB_REPO_URL below (or set it as a repo variable).
+#   2. Optionally set repo variables DISPLAY_NAME / EXTENSION_NAME / FOLDER_NAME
+#      if you want to override without editing this file.
+
+name: CmdPal Extension – Build & Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (leave blank to read from UnitConverter.csproj)'
+        required: false
+        type: string
+      release_notes:
+        description: "What's new in this version"
+        required: false
+        default: 'New release with the latest updates and improvements.'
+        type: string
+
+env:
+  DISPLAY_NAME:   ${{ vars.DISPLAY_NAME   || 'Unit Converter' }}
+  EXTENSION_NAME: ${{ vars.EXTENSION_NAME || 'UnitConverter' }}
+  FOLDER_NAME:    ${{ vars.FOLDER_NAME    || 'UnitConverter' }}
+  GITHUB_REPO_URL: ${{ vars.GITHUB_REPO_URL || 'https://github.com/DomGravante/UnitConverter' }}
+
+jobs:
+  build:
+    runs-on: windows-2022
+    permissions:
+      contents: write
+      actions: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
+        shell: pwsh
+
+      - name: Resolve version
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.event.inputs.version }}" -ne "") {
+            $v = "${{ github.event.inputs.version }}"
+          } else {
+            $f = "${{ env.FOLDER_NAME }}/${{ env.EXTENSION_NAME }}.csproj"
+            $xml = [xml](Get-Content $f)
+            $v = $xml.Project.PropertyGroup.AppxPackageVersion | Select-Object -First 1
+            if (-not $v) { throw "AppxPackageVersion not found in $f" }
+          }
+          "VERSION=$v" >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $v"
+
+      - name: Build EXE installers (x64 + ARM64)
+        shell: pwsh
+        run: |
+          Set-Location "${{ env.FOLDER_NAME }}/${{ env.FOLDER_NAME }}"
+          .\build-exe.ps1 -Version "${{ steps.version.outputs.VERSION }}" -Platforms @("x64", "arm64")
+
+      - name: Upload x64 installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.EXTENSION_NAME }}-x64-installer
+          path: ${{ env.FOLDER_NAME }}/bin/Release/installer/*-x64.exe
+          if-no-files-found: error
+
+      - name: Upload ARM64 installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.EXTENSION_NAME }}-arm64-installer
+          path: ${{ env.FOLDER_NAME }}/bin/Release/installer/*-arm64.exe
+          if-no-files-found: warn
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.EXTENSION_NAME }}-v${{ steps.version.outputs.VERSION }}
+          name: "${{ env.DISPLAY_NAME }} v${{ steps.version.outputs.VERSION }}"
+          body: |
+            ## ${{ env.DISPLAY_NAME }} ${{ steps.version.outputs.VERSION }}
+
+            ## What's New
+            ${{ github.event.inputs.release_notes }}
+
+            ## Installation
+
+            Download the installer for your architecture from the Assets section below.
+
+            | Architecture | File |
+            |---|---|
+            | x64 (Intel/AMD) | `${{ env.EXTENSION_NAME }}-Setup-${{ steps.version.outputs.VERSION }}-x64.exe` |
+            | ARM64 | `${{ env.EXTENSION_NAME }}-Setup-${{ steps.version.outputs.VERSION }}-arm64.exe` |
+
+            1. Download the appropriate installer
+            2. Run it (no administrator privileges required — installs per-user)
+            3. The extension registers itself and appears in PowerToys Command Palette
+
+            ## Requirements
+            - PowerToys ≥ 0.87 with Command Palette enabled
+            - Windows 10 19041 or later
+
+            Repository: ${{ env.GITHUB_REPO_URL }}
+          files: ${{ env.FOLDER_NAME }}/bin/Release/installer/*.exe
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

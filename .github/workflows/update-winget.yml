@@ -1,0 +1,93 @@
+# Submits an updated WinGet manifest whenever a new GitHub Release is published.
+# Also triggerable manually.
+#
+# TODO before first run:
+#   1. Complete the FIRST manual WinGet submission via `wingetcreate new` (see README).
+#   2. Fill in GITHUB_USER_NAME and GITHUB_REPO below (or set them as repo variables).
+#   3. Set WINGET_PACKAGE_ID to the identifier assigned during the first submission
+#      (e.g. "YourPublisher.UnitConverter") — or set it as a repo variable.
+
+name: Update WinGet – Unit Converter
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g. 0.0.2.0)'
+        required: false
+        type: string
+      release_tag:
+        description: 'Release tag (e.g. UnitConverter-v0.0.2.0)'
+        required: false
+        type: string
+
+env:
+  EXTENSION_NAME:    ${{ vars.EXTENSION_NAME    || 'UnitConverter' }}
+  GITHUB_USER_NAME:  ${{ vars.GITHUB_USER_NAME  || 'TODO: your-github-username' }}
+  GITHUB_REPO:       ${{ vars.GITHUB_REPO       || 'TODO: UnitConverter' }}
+  # Set this to the WinGet package identifier after the first manual submission:
+  WINGET_PACKAGE_ID: ${{ vars.WINGET_PACKAGE_ID || 'TODO: YourPublisher.UnitConverter' }}
+
+jobs:
+  update-winget:
+    # Only run for releases that belong to this extension
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.event.release.name, 'Unit Converter')
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve release info
+        id: release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch" -and "${{ inputs.version }}" -ne "") {
+            $v   = "${{ inputs.version }}"
+            $tag = "${{ inputs.release_tag }}"
+          } elseif ("${{ github.event_name }}" -eq "release") {
+            $tag = "${{ github.event.release.tag_name }}"
+            $v   = $tag -replace "${{ env.EXTENSION_NAME }}-v", ""
+          } else {
+            $rel = gh release list --limit 1 --json tagName,name |
+                   ConvertFrom-Json |
+                   Where-Object { $_.name -like "Unit Converter*" }
+            $tag = $rel.tagName
+            $v   = $tag -replace "${{ env.EXTENSION_NAME }}-v", ""
+          }
+          "VERSION=$v"   >> $env:GITHUB_OUTPUT
+          "TAG=$tag"     >> $env:GITHUB_OUTPUT
+          Write-Host "Version: $v  Tag: $tag"
+
+      - name: Install wingetcreate
+        run: iwr https://aka.ms/wingetcreate/latest -OutFile wingetcreate.exe
+        shell: pwsh
+
+      - name: Submit updated WinGet manifest
+        shell: pwsh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $v   = "${{ steps.release.outputs.VERSION }}"
+          $tag = "${{ steps.release.outputs.TAG }}"
+          $user = "${{ env.GITHUB_USER_NAME }}"
+          $repo = "${{ env.GITHUB_REPO }}"
+          $ext  = "${{ env.EXTENSION_NAME }}"
+
+          $x64Url   = "https://github.com/$user/$repo/releases/download/$tag/$ext-Setup-$v-x64.exe"
+          $arm64Url = "https://github.com/$user/$repo/releases/download/$tag/$ext-Setup-$v-arm64.exe"
+
+          Write-Host "x64  : $x64Url"
+          Write-Host "arm64: $arm64Url"
+
+          .\wingetcreate.exe update "${{ env.WINGET_PACKAGE_ID }}" `
+            --version $v `
+            --urls "$x64Url|x64" "$arm64Url|arm64" `
+            --token $env:GITHUB_TOKEN `
+            --submit

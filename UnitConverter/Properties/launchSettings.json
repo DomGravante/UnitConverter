@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "UnitConverter (Package)": {
+      "commandName": "MsixPackage",
+      "doNotLaunchApp": true
+    },
+    "UnitConverter (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
