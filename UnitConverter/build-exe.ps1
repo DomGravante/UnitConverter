@@ -9,15 +9,16 @@
 
 
 param(
-    [string]$ExtensionName = "In <=> MM Converter",  # Change to your extension name
+    [string]$ExtensionName = "UnitConverter",
     [string]$Configuration = "Release",
-    [string]$Version = "0.0.1.1",  # Change to your version
-    [string]$Platform = @("x64", "arm64")
+    [string]$Version = "0.0.1.1",
+    [string[]]$Platforms = @("x64", "arm64")
 )
 
 $ErrorActionPreference = "Stop"
 
-Write-Host "Building $ExtensionName EXE installer..." -ForegroundColor GreenWrite-Host "Version: $Version" -ForegroundColor Yellow
+Write-Host "Building $ExtensionName EXE installer..." -ForegroundColor Green
+Write-Host "Version: $Version" -ForegroundColor Yellow
 Write-Host "Platforms: $($Platforms -join ', ')" -ForegroundColor Yellow
 
 $ProjectDir = Split-Path -Parent $MyInvocation.MyCommand.Path

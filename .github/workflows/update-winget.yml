@@ -25,8 +25,8 @@ on:
 
 env:
   EXTENSION_NAME:    ${{ vars.EXTENSION_NAME    || 'UnitConverter' }}
-  GITHUB_USER_NAME:  ${{ vars.GITHUB_USER_NAME  || 'TODO: your-github-username' }}
-  GITHUB_REPO:       ${{ vars.GITHUB_REPO       || 'TODO: UnitConverter' }}
+  GITHUB_USER_NAME:  ${{ vars.GITHUB_USER_NAME  || 'DomGravante' }}
+  GITHUB_REPO:       ${{ vars.GITHUB_REPO       || 'UnitConverter' }}
   # Set this to the WinGet package identifier after the first manual submission:
   WINGET_PACKAGE_ID: ${{ vars.WINGET_PACKAGE_ID || 'TODO: YourPublisher.UnitConverter' }}
 

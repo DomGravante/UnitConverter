@@ -65,7 +65,7 @@ jobs:
       - name: Build EXE installers (x64 + ARM64)
         shell: pwsh
         run: |
-          Set-Location "${{ env.FOLDER_NAME }}/${{ env.FOLDER_NAME }}"
+          Set-Location "${{ env.FOLDER_NAME }}"
           .\build-exe.ps1 -Version "${{ steps.version.outputs.VERSION }}" -Platforms @("x64", "arm64")
 
       - name: Upload x64 installer artifact
