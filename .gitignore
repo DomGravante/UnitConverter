@@ -1,0 +1,11 @@
+.vs
+
+UnitConverter/bin/*
+UnitConverter/obj/
+
+!**/Properties/launchSettings.json
+!*.pubxml
+
+old
+.claude
+CLAUDE.md
