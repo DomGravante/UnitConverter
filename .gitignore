@@ -6,6 +6,10 @@ UnitConverter/obj/
 !**/Properties/launchSettings.json
 !*.pubxml
 
+# Other stuff
 old
 .claude
 CLAUDE.md
+
+# Built Files
+dist
